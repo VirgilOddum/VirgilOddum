@@ -22,15 +22,13 @@ def clean_html(text):
 
 @app.route("/", methods=["GET"])
 def root():
-    # simple root so hitting the base URL doesn't 404
     return "CaretakerTools autosourcing service", 200
 
 @app.route("/health", methods=["GET"])
 def health():
-    # health check for Render
     return jsonify({"status": "ok"}), 200
 
-def do_search(query):
+def try_search(query):
     """Try common param names used by AliExpress providers."""
     for params in (
         {"keyword": query, "page": 1},
@@ -45,17 +43,17 @@ def do_search(query):
                 if results:
                     return results
         except Exception:
-            continue
+            pass
     return []
 
 def get_detail(product_id):
-    """Try item_detail then item_detail2 with both itemId & item_id."""
+    """Try both detail endpoints with both itemId/item_id param names."""
     for endpoint in (DETAIL_ENDPOINT, DETAIL_ENDPOINT_ALT):
         for key in ("itemId", "item_id"):
             try:
                 r = requests.get(endpoint, headers=HEADERS, params={key: product_id}, timeout=25)
                 if r.status_code == 200:
-                    return r.json() or {}
+                    return (r.json() or {})
             except Exception:
                 pass
     return {}
@@ -93,7 +91,7 @@ def search():
         if not query:
             return jsonify({"status": "error", "message": "Missing query"}), 400
 
-        results = do_search(query)
+        results = try_search(query)
         if not results:
             return jsonify({"status": "needs_review", "message": "No results", "candidates": []}), 200
 
@@ -138,7 +136,6 @@ def search():
             "cost": cost
         }), 200
     except Exception as e:
-        # Return JSON instead of a 502 to make debugging easy
         return jsonify({"status": "server_error", "message": str(e)}), 500
 
 if __name__ == "__main__":
