@@ -35,16 +35,31 @@ def try_search(query):
         {"keywords": query, "page": 1},
         {"q": query, "page": 1},
     ):
+def try_search(query):
+    """Try common param names used by AliExpress providers and return (results, debug)."""
+    attempts = [
+        {"keyword": query, "page": 1},
+        {"keywords": query, "page": 1},
+        {"q": query, "page": 1},
+    ]
+    last_status = None
+    last_text = None
+    for params in attempts:
         try:
             r = requests.get(SEARCH_ENDPOINT, headers=HEADERS, params=params, timeout=25)
+            last_status = r.status_code
+            # limit text to avoid huge logs
+            last_text = (r.text or "")[:400]
             if r.status_code == 200:
                 j = r.json() or {}
                 results = j.get("data") or j.get("result") or j.get("items") or []
                 if results:
-                    return results
-        except Exception:
-            pass
-    return []
+                    return results, {"attempt": params, "status": r.status_code}
+        except Exception as e:
+            last_text = f"exception: {str(e)[:200]}"
+            continue
+    return [], {"last_status": last_status, "last_text": last_text}
+
 
 def get_detail(product_id):
     """Try both detail endpoints with both itemId/item_id param names."""
