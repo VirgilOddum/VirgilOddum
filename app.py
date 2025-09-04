@@ -27,6 +27,7 @@ def root():
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
+
 def try_search(query):
     """Try common param names used by AliExpress providers and return (results, debug)."""
     attempts = [
@@ -40,8 +41,7 @@ def try_search(query):
         try:
             r = requests.get(SEARCH_ENDPOINT, headers=HEADERS, params=params, timeout=25)
             last_status = r.status_code
-            # limit text to avoid huge logs
-            last_text = (r.text or "")[:400]
+            last_text = (r.text or "")[:400]  # short snippet only
             if r.status_code == 200:
                 j = r.json() or {}
                 results = j.get("data") or j.get("result") or j.get("items") or []
@@ -52,15 +52,14 @@ def try_search(query):
             continue
     return [], {"last_status": last_status, "last_text": last_text}
 
-
 def get_detail(product_id):
-    """Try both detail endpoints with both itemId/item_id param names."""
+    """Try both detail endpoints with itemId/item_id."""
     for endpoint in (DETAIL_ENDPOINT, DETAIL_ENDPOINT_ALT):
         for key in ("itemId", "item_id"):
             try:
                 r = requests.get(endpoint, headers=HEADERS, params={key: product_id}, timeout=25)
                 if r.status_code == 200:
-                    return (r.json() or {})
+                    return r.json() or {}
             except Exception:
                 pass
     return {}
@@ -69,13 +68,16 @@ def score_result(result, query):
     title = (result.get("title") or "").lower()
     q = (query or "").lower()
     score = 0.0
-    if q and q in title: score += 5.0
+    if q and q in title:
+        score += 5.0
     try:
         score += float(result.get("orders", 0)) / 1000.0
-    except: pass
+    except:
+        pass
     try:
         score += float(result.get("rating", 0))
-    except: pass
+    except:
+        pass
     return score
 
 def normalize_candidate(r):
@@ -101,12 +103,24 @@ def search():
         results, debug = try_search(query)
 
         if not results:
-    return jsonify({"status": "needs_review", "message": "No results", "candidates": [], "debug": debug}), 200
+            return jsonify({
+                "status": "needs_review",
+                "message": "No results",
+                "candidates": [],
+                "debug": debug
+            }), 200
 
-        scored = sorted(((score_result(r, query), r) for r in results[:15]), key=lambda x: x[0], reverse=True)
+        scored = sorted(
+            ((score_result(r, query), r) for r in results[:15]),
+            key=lambda x: x[0],
+            reverse=True,
+        )
         top_score, top = scored[0]
         if top_score < 6.0:
-            return jsonify({"status": "needs_review", "candidates": [normalize_candidate(r) for _, r in scored[:3]]}), 200
+            return jsonify({
+                "status": "needs_review",
+                "candidates": [normalize_candidate(r) for _, r in scored[:3]]
+            }), 200
 
         pid = top.get("product_id") or top.get("item_id") or top.get("id")
         det = get_detail(pid) if pid else {}
@@ -143,6 +157,7 @@ def search():
             "supplier_url": top.get("url") or top.get("product_url"),
             "cost": cost
         }), 200
+
     except Exception as e:
         return jsonify({"status": "server_error", "message": str(e)}), 500
 
