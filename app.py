@@ -27,14 +27,6 @@ def root():
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
-
-def try_search(query):
-    """Try common param names used by AliExpress providers."""
-    for params in (
-        {"keyword": query, "page": 1},
-        {"keywords": query, "page": 1},
-        {"q": query, "page": 1},
-    ):
 def try_search(query):
     """Try common param names used by AliExpress providers and return (results, debug)."""
     attempts = [
