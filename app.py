@@ -98,9 +98,10 @@ def search():
         if not query:
             return jsonify({"status": "error", "message": "Missing query"}), 400
 
-        results = try_search(query)
+        results, debug = try_search(query)
+
         if not results:
-            return jsonify({"status": "needs_review", "message": "No results", "candidates": []}), 200
+    return jsonify({"status": "needs_review", "message": "No results", "candidates": [], "debug": debug}), 200
 
         scored = sorted(((score_result(r, query), r) for r in results[:15]), key=lambda x: x[0], reverse=True)
         top_score, top = scored[0]
