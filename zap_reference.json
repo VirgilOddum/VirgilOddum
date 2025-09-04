@@ -1,0 +1,78 @@
+{
+  "name": "CT: Sheet \u2192 AutoSource \u2192 Shopify",
+  "version": "reference-1",
+  "steps": [
+    {
+      "type": "trigger",
+      "app": "google_sheets",
+      "event": "new_spreadsheet_row",
+      "config": {
+        "spreadsheet": "CaretakerTools Products",
+        "worksheet": "Sheet1"
+      },
+      "filter": {
+        "field": "Ready",
+        "equals": "yes"
+      }
+    },
+    {
+      "type": "action",
+      "app": "webhooks_by_zapier",
+      "event": "post",
+      "config": {
+        "url": "https://YOUR-SERVICE-URL/search",
+        "payload_type": "json",
+        "data": {
+          "query": "{{Product Name}}",
+          "target_price": "{{Target Price}}"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "type": "action",
+      "app": "shopify",
+      "event": "create_product",
+      "config": {
+        "title": "{{step2.title}}",
+        "body_html": "{{step2.body_html}}",
+        "images": "{{step2.image_srcs}}",
+        "vendor": "{{step2.vendor}}",
+        "tags": "{{step2.tags}}"
+      }
+    },
+    {
+      "type": "action",
+      "app": "shopify",
+      "event": "update_product_variant",
+      "config": {
+        "price": "{{step2.price}}",
+        "compare_at_price": "{{step2.compare_at_price}}",
+        "inventory_quantity": "{{step2.inventory_quantity}}"
+      }
+    },
+    {
+      "type": "branch",
+      "condition": "{{step2.status}} == 'needs_review'",
+      "then": [
+        {
+          "type": "action",
+          "app": "google_sheets",
+          "event": "create_spreadsheet_row",
+          "config": {
+            "spreadsheet": "CaretakerTools Products - Needs Review",
+            "worksheet": "Sheet1",
+            "row": {
+              "Product Name": "{{Product Name}}",
+              "Candidates": "{{step2.candidates}}"
+            }
+          }
+        }
+      ],
+      "else": []
+    }
+  ],
+  "notes": "Reference JSON; Zapier may not import directly. Use as mapping guide."
+}
