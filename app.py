@@ -41,32 +41,7 @@ def get_with_retries(url, *, params=None, headers=None, tries=3, backoff=2):
         time.sleep(backoff * (i + 1))  # 2s, 4s, 6s
     return last
 
-def try_search(query):
-    """Try common param names used by AliExpress providers and return (results, debug)."""
-    attempts = [
-        {"keyword": query, "page": 1},
-        {"keywords": query, "page": 1},
-        {"q": query, "page": 1},
-    ]
-    last_status = None
-    last_text = None
-    last_params = None
-    for params in attempts:
-        try:
-            r = get_with_retries(SEARCH_ENDPOINT, headers=HEADERS, params=params)
-            last_status = r.status_code
-            last_params = params
-            last_text = (r.text or "")[:400]
-            if r.status_code == 200:
-                j = r.json() or {}
-                results = j.get("data") or j.get("result") or j.get("items") or []
-                if results:
-                    return results, {"attempt": params, "status": r.status_code}
-            # keep looping; we’ll return debug below if none succeeded
-        except Exception as e:
-            last_text = f"exception: {str(e)[:200]}"
-            continue
-    return [], {"last_status": last_status, "last_text": last_text, "last_params": last_params}
+try_search
 
 def get_detail(product_id):
     for endpoint in (DETAIL_ENDPOINT, DETAIL_ENDPOINT_ALT):
