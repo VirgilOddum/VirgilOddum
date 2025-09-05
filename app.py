@@ -103,10 +103,18 @@ def search():
         if not results:
             return jsonify({"status": "needs_review", "message": "No results", "candidates": [], "debug": debug}), 200
 
-        scored = sorted(((score_result(r, query), r) for r in results[:15]), key=lambda x: x[0], reverse=True)
-        top_score, top = scored[0]
-        if top_score < 6.0:
-            return jsonify({"status": "needs_review", "candidates": [normalize_candidate(r) for _, r in scored[:3]]}), 200
+        # Ensure we have a list before slicing
+if not isinstance(results, list):
+    try:
+        results = list(results)  # if it's something iterable
+    except Exception:
+        results = []
+
+top_n = results[:15] if isinstance(results, list) else []
+scored = sorted(((score_result(r, query), r) for r in top_n), key=lambda x: x[0], reverse=True)
+if not scored:
+    return jsonify({"status": "needs_review", "message": "No results", "candidates": [], "debug": {"note": "empty_after_parse"}}), 200
+
 
         pid = top.get("product_id") or top.get("item_id") or top.get("id")
         det = get_detail(pid) if pid else {}
